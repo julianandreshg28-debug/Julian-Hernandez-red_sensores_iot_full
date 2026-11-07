@@ -1,28 +1,59 @@
 # Criterios de Decisión: Estructuras de Datos en la Red de Sensores
 
-Este documento es la parte más importante de tu entrega. No basta con que el código funcione; debes justificar **por qué** elegiste una colección de Java sobre otra.
+## 1. El dilema del historial: ArrayList vs. LinkedList
 
-Responde a las siguientes preguntas basándote en la teoría de nodos y el rendimiento del JCF.
+Si el sistema registra miles de eventos por segundo y necesita eliminar constantemente los más antiguos, elegiría `LinkedList`, ya que permite eliminar el primer elemento en tiempo O(1). En cambio, en un `ArrayList`, eliminar el primer elemento requiere desplazar los demás registros, por lo que la operación tiene una complejidad O(n).
 
-### 1. El dilema del Historial
-Para el `historialEventos`, podrías usar un `ArrayList` o un `LinkedList`. 
-- Si la plataforma registra miles de eventos por segundo y necesitas eliminar los más antiguos frecuentemente para ahorrar memoria, ¿cuál de las dos colecciones es más eficiente y por qué? (Pista: piensa en el costo de eliminar el primer elemento).
+Sin embargo, en nuestro proyecto utilizamos `ArrayList` porque permite acceder rápidamente a los eventos y agregar registros al final de manera eficiente. Además, implementamos `subList().clear()` para eliminar varios eventos antiguos en una sola operación, evitando eliminarlos individualmente.
 
-### 2. Navegación Bidireccional
-En el `navegadorAlertas`, utilizamos un `Deque` (Double Ended Queue). 
-- ¿Qué ventaja ofrece un `Deque` sobre una `Queue` simple para implementar la funcionalidad de "Atrás" y "Adelante"? 
-- ¿Cómo se relaciona esto con el concepto de un `NodoDoble`?
+Por eso, considero que ambas estructuras pueden ser útiles, pero su elección depende de las operaciones que realice el sistema con mayor frecuencia.
 
-### 3. El Ciclo de Monitoreo
-Para la `colaMonitoreo`, implementaste una rotación (sacar del frente y meter al final).
-- ¿Por qué una `Queue` es la estructura natural para este problema? 
-- ¿Qué pasaría con la equidad del sistema si usaras una `Stack` (Pila) en su lugar?
+## 2. Navegación bidireccional: Deque vs. Queue
 
-### 4. Topología de Red (El Grafo)
-Representaste la red de sensores como un `Map<String, List<String>>`.
-- ¿Por qué usamos un `Map` y no un arreglo bidimensional (matriz de adyacencia) considerando que la mayoría de los sensores solo están conectados a 2 o 3 vecinos?
-- ¿Cómo se traduce esta estructura de `Map` a la idea de un `NodoGrafo` con una lista de adyacencias?
+La principal ventaja de `Deque` es que permite agregar y retirar elementos por ambos extremos, mientras que una `Queue` tradicional se utiliza principalmente para procesar elementos desde el frente siguiendo el orden FIFO.
 
-### 5. Buffer de Ingesta y Rendimiento
-El `bufferIngesta` procesa datos en orden FIFO.
-- Si el volumen de datos aumenta drásticamente y necesitas procesar las lecturas en paralelo usando múltiples hilos, ¿seguiría siendo adecuado un `ArrayDeque` o deberías cambiar a una `ConcurrentLinkedQueue`? Justifica tu respuesta basándote en la seguridad de hilos (Thread-safety).
+Esto resulta útil para gestionar las alertas porque necesitamos desplazarnos hacia adelante y hacia atrás.
+
+Se relaciona con el concepto de `NodoDoble` porque un nodo doble contiene una referencia al siguiente nodo y otra al anterior, permitiendo recorrer una estructura en ambas direcciones.
+
+En nuestro proyecto utilizamos `ArrayDeque` para almacenar las alertas y una variable que controla la posición actual. De esta manera podemos seleccionar la alerta anterior o siguiente. Aunque `ArrayDeque` no utiliza necesariamente nodos dobles internamente, permite trabajar con operaciones propias de una cola de doble extremo.
+
+## 3. El ciclo de monitoreo: Queue vs. Stack
+
+Una `Queue` es adecuada para el monitoreo porque funciona siguiendo el principio FIFO: el primer sensor que entra es el primero que se consulta.
+
+En nuestro programa, cuando se consulta un sensor, este se retira del frente de la cola y se vuelve a agregar al final. Así todos los sensores tienen la oportunidad de ser consultados de manera ordenada y repetitiva.
+
+Si utilizáramos una `Stack`, el funcionamiento sería diferente porque sigue el principio LIFO, donde el último elemento agregado es el primero en salir.
+
+Esto podría afectar la equidad del monitoreo, ya que los sensores agregados recientemente podrían recibir atención antes que los que llevan más tiempo esperando. Por esa razón, la cola es más adecuada para nuestro sistema.
+
+## 4. Topología de red: Lista de adyacencia vs. Matriz de adyacencia
+
+Elegimos `Map<String, List<String>>` porque nuestra red de sensores tiene relativamente pocas conexiones por estación.
+
+Una matriz de adyacencia necesita reservar espacio para representar todas las posibles conexiones entre sensores, incluso cuando muchas de ellas no existen. Su costo de memoria es O(V²), donde V representa el número de sensores.
+
+En cambio, una lista de adyacencia almacena únicamente los sensores y sus conexiones existentes. Su costo de almacenamiento es O(V + E), donde E representa el número de conexiones.
+
+En nuestro proyecto, el `Map` permite identificar cada sensor mediante su código y asociarlo con una lista que contiene sus vecinos.
+
+Esto se relaciona con el concepto de `NodoGrafo`, porque cada sensor representa un vértice y su lista de vecinos representa las conexiones que tiene con otros vértices.
+
+Además, utilizamos `HashMap`, que permite buscar un sensor por su identificador en tiempo O(1) promedio.
+
+Por estas razones, la lista de adyacencia es una alternativa más eficiente para representar nuestra red.
+
+## 5. Buffer de ingesta: ArrayDeque vs. ConcurrentLinkedQueue
+
+En nuestro proyecto utilizamos `ArrayDeque` para almacenar y procesar las lecturas de los sensores en orden FIFO.
+
+Esta estructura es adecuada cuando las operaciones se realizan de manera secuencial, porque permite agregar elementos al final y retirarlos del frente de forma eficiente.
+
+Sin embargo, si el sistema aumentara considerablemente su volumen de datos y necesitara recibir o procesar lecturas desde varios hilos al mismo tiempo, sería más conveniente utilizar `ConcurrentLinkedQueue`.
+
+La razón es que `ArrayDeque` no es una estructura segura para el acceso concurrente sin sincronización externa. Si varios hilos la modifican simultáneamente, podrían producirse inconsistencias.
+
+En cambio, `ConcurrentLinkedQueue` está diseñada para permitir operaciones concurrentes de forma segura, sin utilizar un bloqueo global para cada operación.
+
+Por lo tanto, mantendría `ArrayDeque` para el funcionamiento actual, pero consideraría `ConcurrentLinkedQueue` si el sistema necesitara trabajar con múltiples hilos.
