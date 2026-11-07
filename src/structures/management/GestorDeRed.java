@@ -96,7 +96,10 @@ public class GestorDeRed {
             return null;
         }
 
-        alertaActual = new ArrayList<>(navegadorAlertas).get(indiceAlerta);
+        alertaActual = navegadorAlertas.stream()
+                .skip(indiceAlerta)
+                .findFirst()
+                .orElse(null);
         return alertaActual;
     }
 
@@ -107,7 +110,10 @@ public class GestorDeRed {
 
         indiceAlerta--;
 
-        alertaActual = new ArrayList<>(navegadorAlertas).get(indiceAlerta);
+        alertaActual = navegadorAlertas.stream()
+                .skip(indiceAlerta)
+                .findFirst()
+                .orElse(null);
 
         return alertaActual;
     }
